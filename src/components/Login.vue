@@ -1,14 +1,41 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { apiClient } from '../api'
 
 const email = ref('')
 const password = ref('')
 const rememberMe = ref(false)
 const showPassword = ref(false)
+const loading = ref(false)
+const error = ref<string | null>(null)
 
-const handleSignIn = () => {
-  // Add authentication logic here
-  console.log('Signing in with:', email.value, password.value)
+const handleSignIn = async () => {
+  error.value = null
+  loading.value = true
+
+  try {
+    const response = await apiClient.login({
+      email: email.value,
+      password: password.value,
+    })
+
+    // Store token in localStorage
+    localStorage.setItem('token', response.access_token)
+    localStorage.setItem('user', JSON.stringify(response.user))
+
+    // Optional: Store remember me preference
+    if (rememberMe.value) {
+      localStorage.setItem('rememberEmail', email.value)
+    }
+
+    // Redirect to dashboard or home
+    alert(`Welcome ${response.user.name}! Login successful.`)
+  } catch (err) {
+    error.value = 'Login failed. Please check your credentials and try again.'
+    console.error('Login error:', err)
+  } finally {
+    loading.value = false
+  }
 }
 
 const togglePassword = () => {
@@ -49,6 +76,10 @@ const togglePassword = () => {
         <h1 class="welcome-title">Welcome Back</h1>
         <p class="welcome-subtitle">Enter your email address and password to access your account.</p>
 
+        <div v-if="error" class="error-message">
+          {{ error }}
+        </div>
+
         <form @submit.prevent="handleSignIn" class="login-form">
           <div class="input-group">
             <label for="email">Email Address <span class="required">*</span></label>
@@ -86,7 +117,9 @@ const togglePassword = () => {
             <a href="#" class="forgot-password">Forgot Password?</a>
           </div>
 
-          <button type="submit" class="sign-in-btn">Sign in</button>
+          <button type="submit" class="sign-in-btn" :disabled="loading">
+            {{ loading ? 'Signing in...' : 'Sign in' }}
+          </button>
         </form>
 
         <p class="signup-prompt">
@@ -205,6 +238,16 @@ const togglePassword = () => {
   margin-bottom: 40px;
 }
 
+.error-message {
+  background-color: #fee;
+  color: #c33;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  border-left: 4px solid #c33;
+}
+
 .login-form {
   display: flex;
   flex-direction: column;
@@ -310,6 +353,12 @@ input[type="password"]:focus {
 
 .sign-in-btn:hover {
   background-color: #531c73;
+}
+
+.sign-in-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .signup-prompt {
